@@ -5,6 +5,7 @@ interface SettingsData {
   id: string;
   tags: string[];
   names: string[]; // Person names
+  initialized?: boolean;
 }
 
 interface TransactionDB extends DBSchema {
