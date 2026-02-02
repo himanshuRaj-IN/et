@@ -221,19 +221,29 @@ export interface BackupData {
 }
 
 export const createBackup = async (): Promise<BackupData> => {
-  const transactions = await getAllTransactions();
-  const settings = await getSettings();
-  const budgets = await getAllBudgets();
-  const investmentGoals = await getAllInvestmentGoals();
-  
-  return {
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    transactions,
-    settings,
-    budgets,
-    investmentGoals
-  };
+  try {
+    const db = await initDB();
+    
+    // Fetch all data from IndexedDB
+    const transactions = await db.getAll(STORE_NAME);
+    const settingsData = await db.get(SETTINGS_STORE, 'user-settings');
+    const budgets = await db.getAll(BUDGETS_STORE);
+    const investmentGoals = await db.getAll(INVESTMENT_GOALS_STORE);
+    
+    const settings = settingsData ? { tags: settingsData.tags, names: settingsData.names } : { tags: [], names: [] };
+    
+    return {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      transactions,
+      settings,
+      budgets,
+      investmentGoals
+    };
+  } catch (error) {
+    console.error('Error creating backup:', error);
+    throw new Error(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
 export const restoreFromBackup = async (data: BackupData, mode: 'merge' | 'replace'): Promise<void> => {

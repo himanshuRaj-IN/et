@@ -71,19 +71,45 @@ export function SettingsModal({ isOpen, onClose, tags: initialTags, names: initi
   const handleBackup = async () => {
     setIsBackingUp(true);
     try {
+      console.log('Starting backup creation...');
       const backupData = await createBackup();
+      console.log('Backup data created:', backupData);
+      
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      console.log('Blob created, size:', blob.size);
+      
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `expense-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+      
+      // Use appendChild + click + removeChild for better browser support
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      
+      // Try click with timeout to ensure it works
+      setTimeout(() => {
+        try {
+          a.click();
+          console.log('Download triggered');
+        } catch (e) {
+          console.error('Click failed:', e);
+          // Fallback: create link and click
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `expense-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+          link.click();
+        }
+      }, 100);
+      
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('Cleanup done');
+      }, 200);
     } catch (error) {
       console.error('Failed to create backup:', error);
-      alert('Failed to create backup. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to create backup: ${errorMessage}\n\nPlease check the browser console for more details.`);
     } finally {
       setIsBackingUp(false);
     }
