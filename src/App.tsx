@@ -3,7 +3,6 @@ import { Moon, Sun, Settings, LayoutDashboard, CreditCard, Plus, Users } from 'l
 import { TransactionList } from './components/TransactionList';
 import { TransactionForm } from './components/TransactionForm';
 import { Dashboard } from './components/Dashboard';
-import { BudgetPlanner } from './components/BudgetPlanner';
 import { PeopleLedger } from './components/PeopleLedger';
 import { SettingsModal } from './components/SettingsModal';
 import { GroupTransactionModal } from './components/GroupTransactionModal';
@@ -11,7 +10,7 @@ import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { getAllTransactions, deleteTransaction, getSettings, saveSettings } from './services/db';
 import type { Transaction } from './types';
 
-type ViewType = 'dashboard' | 'transactions' | 'budget' | 'people';
+type ViewType = 'dashboard' | 'transactions' | 'people';
 
 function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -289,17 +288,6 @@ const [showFilters, setShowFilters] = useState(false);
               <Users className="w-4 h-4" />
               People
             </button>
-            <button
-              onClick={() => setCurrentView('budget')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                currentView === 'budget'
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-t-2 border-blue-500'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Budget
-            </button>
           </div>
         </div>
       </header>
@@ -309,13 +297,6 @@ const [showFilters, setShowFilters] = useState(false);
           <Dashboard 
             transactions={transactions} 
             settlementTotal={settlementTotal}
-          />
-        )}
-
-        {currentView === 'budget' && (
-          <BudgetPlanner 
-            transactions={transactions} 
-            onUpdate={loadTransactions}
           />
         )}
 
