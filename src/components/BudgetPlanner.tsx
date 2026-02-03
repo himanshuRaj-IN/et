@@ -20,12 +20,11 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
   const [formAmount, setFormAmount] = useState('');
   const [formTags, setFormTags] = useState<string[]>([]);
   const [formType, setFormType] = useState<'monthly' | 'custom'>('monthly');
-  const [formMonth, setFormMonth] = useState('');
   const [formStartDate, setFormStartDate] = useState('');
   const [formEndDate, setFormEndDate] = useState('');
   const [formColor, setFormColor] = useState('#3B82F6');
 
-  const colors = [
+const colors = [
     '#3B82F6', // blue
     '#10B981', // green
     '#F59E0B', // amber
@@ -55,22 +54,17 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
     }
   };
 
-  const getCurrentMonth = () => {
-    return new Date().toISOString().slice(0, 7);
-  };
-
-  const getBudgetSpent = (budget: Budget): number => {
-    const now = new Date();
+const getBudgetSpent = (budget: Budget): number => {
     let startDate: Date;
     let endDate: Date;
 
     if (budget.type === 'monthly') {
-      const [year, month] = (budget.month || getCurrentMonth()).split('-').map(Number);
-      startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month, 0, 23, 59, 59, 999);
+      const now = new Date();
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     } else {
-      startDate = budget.startDate ? new Date(budget.startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = budget.endDate ? new Date(budget.endDate) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      startDate = budget.startDate ? new Date(budget.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      endDate = budget.endDate ? new Date(budget.endDate + 'T23:59:59.999') : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59, 999);
     }
 
     return transactions
@@ -114,7 +108,6 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
       amount: parseFloat(formAmount),
       tags: formTags,
       type: formType,
-      month: formType === 'monthly' ? formMonth : undefined,
       startDate: formType === 'custom' ? formStartDate : undefined,
       endDate: formType === 'custom' ? formEndDate : undefined,
       createdAt: editingBudget?.createdAt || new Date().toISOString(),
@@ -138,7 +131,6 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
     setFormAmount(budget.amount.toString());
     setFormTags(budget.tags);
     setFormType(budget.type);
-    setFormMonth(budget.month || getCurrentMonth());
     setFormStartDate(budget.startDate || '');
     setFormEndDate(budget.endDate || '');
     setFormColor(budget.color || '#3B82F6');
@@ -163,7 +155,6 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
     setFormAmount('');
     setFormTags([]);
     setFormType('monthly');
-    setFormMonth(getCurrentMonth());
     setFormStartDate('');
     setFormEndDate('');
     setFormColor('#3B82F6');
@@ -177,6 +168,18 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
     );
+  };
+
+  const formatDateRange = (budget: Budget) => {
+    if (budget.type === 'monthly') {
+      const now = new Date();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    } else {
+      const start = budget.startDate ? new Date(budget.startDate).toLocaleDateString('en-IN') : '...';
+      const end = budget.endDate ? new Date(budget.endDate).toLocaleDateString('en-IN') : '...';
+      return `${start} - ${end}`;
+    }
   };
 
   if (loading) {
@@ -239,12 +242,7 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
                         <span>{budget.tags.join(', ') || 'All tags'}</span>
                         <span className="text-gray-300 dark:text-gray-600">•</span>
                         <Calendar className="w-3 h-3" />
-                        <span>
-                          {budget.type === 'monthly' 
-                            ? (budget.month || getCurrentMonth())
-                            : `${budget.startDate || '...'} to ${budget.endDate || '...'}`
-                          }
-                        </span>
+                        <span>{formatDateRange(budget)}</span>
                       </div>
                     </div>
                   </div>
@@ -386,7 +384,7 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
                         : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                   >
-                    Monthly
+                    Current Month
                   </button>
                   <button
                     type="button"
@@ -402,21 +400,8 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
                 </div>
               </div>
 
-              {/* Date Selection */}
-              {formType === 'monthly' ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Month
-                  </label>
-                  <input
-                    type="month"
-                    value={formMonth}
-                    onChange={(e) => setFormMonth(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              ) : (
+              {/* Date Selection for Custom Range */}
+              {formType === 'custom' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
