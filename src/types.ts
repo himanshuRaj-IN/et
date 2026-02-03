@@ -8,12 +8,22 @@ export interface Transaction {
   tag: string;
 }
 
+// Category types for budgeting
+export type BudgetCategory = 'needs' | 'wants' | 'investment';
+
+// Tag to category mapping configuration
+export interface TagCategoryMapping {
+  tag: string;
+  category: BudgetCategory;
+}
+
 // Enhanced Budget interface with support for multiple tags, custom date ranges, and investment goals
 export interface Budget {
   id: string;
   name: string;  // User-defined name for the budget
   amount: number;  // Budget limit in rupees
   tags: string[];  // Multiple tags this budget applies to
+  category: BudgetCategory;  // Category: needs, wants, or investment
   type: 'monthly' | 'custom';  // Budget type
   startDate?: string;  // For custom date range budgets (YYYY-MM-DD)
   endDate?: string;    // For custom date range budgets (YYYY-MM-DD)

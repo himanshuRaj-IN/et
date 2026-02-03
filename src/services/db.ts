@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Transaction, Budget, InvestmentGoal } from '../types';
+import type { Transaction, Budget, InvestmentGoal, TagCategoryMapping } from '../types';
 
 interface SettingsData {
   id: string;
@@ -21,12 +21,17 @@ interface TransactionDB extends DBSchema {
   budgets: {
     key: string;
     value: Budget;
-    indexes: { 'by-type': string; 'by-month': string; 'by-tags': string };
+    indexes: { 'by-type': string; 'by-month': string; 'by-tags': string; 'by-category': string };
   };
   investment_goals: {
     key: string;
     value: InvestmentGoal;
     indexes: { 'by-tags': string };
+  };
+  tag_categories: {
+    key: string;
+    value: TagCategoryMapping;
+    indexes: { 'by-tag': string; 'by-category': string };
   };
 }
 
@@ -59,10 +64,15 @@ export const initDB = () => {
           budgetStore.createIndex('by-month', 'month');
           budgetStore.createIndex('by-tags', 'tags', { multiEntry: true });
         }
-        // Create investment goals store
+// Create investment goals store
         if (!db.objectStoreNames.contains(INVESTMENT_GOALS_STORE)) {
           const goalsStore = db.createObjectStore(INVESTMENT_GOALS_STORE, { keyPath: 'id' });
           goalsStore.createIndex('by-tags', 'tags', { multiEntry: true });
+        }
+        // Create tag categories store
+        if (!db.objectStoreNames.contains('tag_categories')) {
+          const tagCatStore = db.createObjectStore('tag_categories', { keyPath: 'tag' });
+          tagCatStore.createIndex('by-category', 'category');
         }
       },
     });
@@ -202,6 +212,37 @@ export const clearAllInvestmentGoals = async (): Promise<void> => {
 export const getAllInvestmentGoals = async (): Promise<InvestmentGoal[]> => {
   const db = await initDB();
   return db.getAll(INVESTMENT_GOALS_STORE);
+};
+
+// Tag Category Mapping operations
+export const getTagCategoryMappings = async (): Promise<TagCategoryMapping[]> => {
+  const db = await initDB();
+  return db.getAll('tag_categories');
+};
+
+export const saveTagCategoryMapping = async (mapping: TagCategoryMapping): Promise<void> => {
+  const db = await initDB();
+  await db.put('tag_categories', mapping);
+};
+
+export const deleteTagCategoryMapping = async (tag: string): Promise<void> => {
+  const db = await initDB();
+  await db.delete('tag_categories', tag);
+};
+
+export const getTagCategory = async (tag: string): Promise<TagCategoryMapping | undefined> => {
+  const db = await initDB();
+  return db.get('tag_categories', tag);
+};
+
+export const getTagsByCategory = async (category: string): Promise<TagCategoryMapping[]> => {
+  const db = await initDB();
+  return db.getAllFromIndex('tag_categories', 'by-category', category);
+};
+
+export const clearAllTagCategories = async (): Promise<void> => {
+  const db = await initDB();
+  await db.clear('tag_categories');
 };
 
 // Clear all settings
