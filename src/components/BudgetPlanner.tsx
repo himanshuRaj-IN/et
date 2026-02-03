@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Edit2, X, Tag, Calendar, DollarSign, Settings } from 'lucide-react';
-import { getBudgets, saveBudget, deleteBudget, getAllTransactions, getTagCategoryMappings, saveTagCategoryMapping } from '../services/db';
-import type { Budget, Transaction, BudgetCategory, TagCategoryMapping } from '../types';
+import { Plus, Trash2, Edit2, X, Tag, Calendar, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getBudgets, saveBudget, deleteBudget, getAllTransactions } from '../services/db';
+import type { Budget, Transaction, BudgetCategory } from '../types';
 
 interface BudgetPlannerProps {
   tags: string[];
@@ -32,11 +32,42 @@ const CATEGORY_CONFIG = {
 export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [tagCategories, setTagCategories] = useState<TagCategoryMapping[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [showCategorySettings, setShowCategorySettings] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  
+  // Month selection state
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // Month navigation helpers
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const current = new Date(year, month - 1);
+    
+    if (direction === 'prev') {
+      current.setMonth(current.getMonth() - 1);
+    } else {
+      current.setMonth(current.getMonth() + 1);
+    }
+    
+    const newMonth = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+    setSelectedMonth(newMonth);
+  };
+
+  const getMonthDisplay = () => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const date = new Date(year, month - 1);
+    return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  };
+
+  const isCurrentMonth = () => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return selectedMonth === currentMonth;
+  };
   
   // Form state
   const [formName, setFormName] = useState('');
@@ -58,14 +89,12 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
 
   const loadData = async () => {
     try {
-      const [budgetsData, transactionsData, categoriesData] = await Promise.all([
+      const [budgetsData, transactionsData] = await Promise.all([
         getBudgets(),
-        getAllTransactions(),
-        getTagCategoryMappings()
+        getAllTransactions()
       ]);
       setBudgets(budgetsData);
       setTransactions(transactionsData);
-      setTagCategories(categoriesData);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -78,10 +107,12 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
     let endDate: Date;
 
     if (budget.type === 'monthly') {
-      const now = new Date();
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      // Use selected month for monthly budgets
+      const [year, month] = selectedMonth.split('-').map(Number);
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59, 999);
     } else {
+      // Custom range budgets
       startDate = budget.startDate ? new Date(budget.startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       endDate = budget.endDate ? new Date(budget.endDate + 'T23:59:59.999') : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59, 999);
     }
@@ -97,27 +128,34 @@ export function BudgetPlanner({ tags, onBudgetsChange }: BudgetPlannerProps) {
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
-const getBudgetProgress = (budget: Budget): { spent: number; percentage: number; isOverBudget: boolean; daysLeft: number; dailyBurnRate: number; overspendProbability: number } => {
+  const getBudgetProgress = (budget: Budget): { spent: number; percentage: number; isOverBudget: boolean; daysLeft: number; dailyBurnRate: number; overspendProbability: number } => {
+    // Calculate based on selected month
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const monthEnd = new Date(year, month, 0);
     const now = new Date();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     
     const daysInMonth = monthEnd.getDate();
     const currentDay = now.getDate();
-    const daysLeftCount = Math.max(1, Math.ceil((monthEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    // Check if selected month is the current month
+    const isCurrentMonthSelected = selectedMonth === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    // For past months, days left is 0
+    const daysLeftCount = isCurrentMonthSelected 
+      ? Math.max(1, Math.ceil((monthEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : 0;
     
     const spent = getBudgetSpent(budget);
-    const percentage = Math.round((spent / budget.amount) * 100);
+    const percentage = budget.amount > 0 ? Math.round((spent / budget.amount) * 100) : 0;
     
-    // Calculate daily burn rate (based on days passed)
-    const daysPassed = Math.max(1, currentDay);
+    // Calculate daily burn rate
+    const daysPassed = isCurrentMonthSelected ? Math.max(1, currentDay) : daysInMonth;
     const dailyBurnRate = spent / daysPassed;
     
-    // Calculate projected total spending
-    const projectedSpending = dailyBurnRate * daysInMonth;
-    
-    // Calculate overspend probability (simple model based on current pace)
+    // Calculate overspend probability
     let overspendProbability = 0;
-    if (spent > 0) {
+    if (isCurrentMonthSelected && spent > 0) {
+      const projectedSpending = dailyBurnRate * daysInMonth;
       const paceRatio = projectedSpending / budget.amount;
       if (paceRatio > 1.5) overspendProbability = 95;
       else if (paceRatio > 1.2) overspendProbability = 80;
@@ -142,7 +180,7 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
     };
   };
 
-// Calculate category summaries
+  // Calculate category summaries
   const categorySummaries = useMemo(() => {
     const summaries: Record<BudgetCategory, { spent: number; budget: number; percentage: number; budgets: Budget[] }> = {
       needs: { spent: 0, budget: 0, percentage: 0, budgets: [] },
@@ -150,11 +188,8 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
       investment: { spent: 0, budget: 0, percentage: 0, budgets: [] }
     };
     
-    const categoryBudgets = budgets.filter(b => {
-      if (b.type !== 'monthly') return false;
-      const now = new Date();
-      return b.month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}` || b.type === 'monthly';
-    });
+    // Filter budgets for selected month
+    const categoryBudgets = budgets.filter(b => b.type === 'monthly' && b.month === selectedMonth);
     
     categoryBudgets.forEach(budget => {
       const category = budget.category;
@@ -173,7 +208,7 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
     });
     
     return summaries;
-  }, [budgets, transactions]);
+  }, [budgets, transactions, selectedMonth]);
 
   const sortedBudgets = useMemo(() => {
     return [...budgets].sort((a, b) => {
@@ -183,7 +218,7 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
       if (!progressA.isOverBudget && progressB.isOverBudget) return 1;
       return progressB.percentage - progressA.percentage;
     });
-  }, [budgets, transactions]);
+  }, [budgets, transactions, selectedMonth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +232,7 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
       type: formType,
       startDate: formType === 'custom' ? formStartDate : undefined,
       endDate: formType === 'custom' ? formEndDate : undefined,
+      month: formType === 'monthly' ? selectedMonth : undefined,
       createdAt: editingBudget?.createdAt || new Date().toISOString(),
       color: formColor
     };
@@ -261,27 +297,13 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
 
   const formatDateRange = (budget: Budget) => {
     if (budget.type === 'monthly') {
-      const now = new Date();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const date = new Date(year, month - 1);
+      return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
     } else {
       const start = budget.startDate ? new Date(budget.startDate).toLocaleDateString('en-IN') : '...';
       const end = budget.endDate ? new Date(budget.endDate).toLocaleDateString('en-IN') : '...';
       return `${start} - ${end}`;
-    }
-  };
-
-  const getTagCategory = (tag: string): BudgetCategory => {
-    const mapping = tagCategories.find(c => c.tag === tag);
-    return mapping?.category || 'needs';
-  };
-
-  const setTagCategory = async (tag: string, category: BudgetCategory) => {
-    try {
-      await saveTagCategoryMapping({ tag, category });
-      await loadData();
-    } catch (error) {
-      console.error('Failed to save tag category:', error);
     }
   };
 
@@ -325,14 +347,30 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
             Manage budgets with Needs, Wants, and Investment categories
           </p>
         </div>
-        <div className="flex gap-2">
+        
+        {/* Month Selector */}
+        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
           <button
-            onClick={() => setShowCategorySettings(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
+            onClick={() => navigateMonth('prev')}
+            className="p-2 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-600 dark:text-gray-400"
           >
-            <Settings className="w-4 h-4" />
-            Tag Categories
+            <ChevronLeft className="w-5 h-5" />
           </button>
+          <span className="px-4 py-1 font-medium text-gray-900 dark:text-white min-w-[140px] text-center">
+            {getMonthDisplay()}
+          </span>
+          <button
+            onClick={() => navigateMonth('next')}
+            className={`p-2 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors ${
+              isCurrentMonth() ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            disabled={isCurrentMonth()}
+          >
+            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+        
+        <div className="flex gap-2">
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
@@ -540,67 +578,7 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
           })}
         </div>
       )}
-
-      {/* Tag Category Settings Modal */}
-      {showCategorySettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Tag Categories
-              </h2>
-              <button
-                onClick={() => setShowCategorySettings(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Assign each tag to a category (Needs, Wants, or Investment) for better budget tracking.
-              </p>
-              
-              <div className="space-y-3">
-                {tags.map(tag => {
-                  const currentCategory = getTagCategory(tag);
-                  return (
-                    <div 
-                      key={tag}
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Tag className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-900 dark:text-white">{tag}</span>
-                      </div>
-                      <select
-                        value={currentCategory}
-                        onChange={(e) => setTagCategory(tag, e.target.value as BudgetCategory)}
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="needs">🏠 Needs</option>
-                        <option value="wants">🎯 Wants</option>
-                        <option value="investment">📈 Investment</option>
-                      </select>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setShowCategorySettings(false)}
-                className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      
       {/* Add/Edit Budget Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -816,3 +794,4 @@ const getBudgetProgress = (budget: Budget): { spent: number; percentage: number;
     </div>
   );
 }
+

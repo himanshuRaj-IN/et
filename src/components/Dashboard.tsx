@@ -281,35 +281,8 @@ const formatCurrency = (amount: number) => {
     };
   }, [transactions]);
 
-  return (
+return (
     <div className="space-y-6">
-      {/* Summary Card - Quick Stats */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white">
-        <h2 className="text-lg font-semibold mb-4 opacity-90">This Month Summary</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-80 mb-1">Income</p>
-            <p className="text-xl font-bold text-green-300">{formatCurrency(currentMonthStats.income)}</p>
-          </div>
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-80 mb-1">Expenses</p>
-            <p className="text-xl font-bold text-red-300">{formatCurrency(currentMonthStats.expenses)}</p>
-          </div>
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-80 mb-1">Balance</p>
-            <p className={`text-xl font-bold ${
-              currentMonthStats.balance >= 0 ? 'text-green-300' : 'text-red-300'
-            }`}>
-              {formatCurrency(Math.abs(currentMonthStats.balance))}
-            </p>
-          </div>
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <p className="text-sm opacity-80 mb-1">Transactions</p>
-            <p className="text-xl font-bold">{currentMonthStats.count}</p>
-          </div>
-        </div>
-      </div>
-
       {/* Month Selector */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h2>

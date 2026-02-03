@@ -36,7 +36,7 @@ interface TransactionDB extends DBSchema {
 }
 
 const DB_NAME = 'transaction-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'transactions';
 const SETTINGS_STORE = 'settings';
 const BUDGETS_STORE = 'budgets';
