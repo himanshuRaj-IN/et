@@ -8,10 +8,10 @@ interface SettingsModalProps {
   tags: string[];
   names: string[];
   onSave: (tags: string[], names: string[]) => void;
-  onFlush?: () => void;
+  onRestore?: () => void;
 }
 
-export function SettingsModal({ isOpen, onClose, tags: initialTags, names: initialNames, onSave, onFlush }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, tags: initialTags, names: initialNames, onSave, onRestore }: SettingsModalProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [names, setNames] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
@@ -109,7 +109,7 @@ export function SettingsModal({ isOpen, onClose, tags: initialTags, names: initi
     } catch (error) {
       console.error('Failed to create backup:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Failed to create backup: ${errorMessage}\n\nPlease check the browser console for more details.`);
+      alert(`Failed to create backup: ${errorMessage}\n\nPlease open browser DevTools (F12) -> Console tab and look for logs starting with [Backup]. Share those logs with me to help diagnose the issue.`);
     } finally {
       setIsBackingUp(false);
     }
@@ -135,8 +135,8 @@ export function SettingsModal({ isOpen, onClose, tags: initialTags, names: initi
       setIsRestoring(true);
       await restoreFromBackup(backupData, restoreMode);
       
-      alert(`Successfully restored ${backupData.transactions.length} transactions from backup.`);
-      onFlush?.();
+alert(`Successfully restored ${backupData.transactions.length} transactions from backup.`);
+      onRestore?.();
       onClose();
     } catch (error) {
       console.error('Failed to restore backup:', error);

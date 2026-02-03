@@ -1,16 +1,17 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Moon, Sun, Settings, LayoutDashboard, CreditCard, Plus, Users } from 'lucide-react';
+import { Moon, Sun, Settings, LayoutDashboard, CreditCard, Plus, Users, Wallet } from 'lucide-react';
 import { TransactionList } from './components/TransactionList';
 import { TransactionForm } from './components/TransactionForm';
 import { Dashboard } from './components/Dashboard';
 import { PeopleLedger } from './components/PeopleLedger';
+import { BudgetPlanner } from './components/BudgetPlanner';
 import { SettingsModal } from './components/SettingsModal';
 import { GroupTransactionModal } from './components/GroupTransactionModal';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { getAllTransactions, deleteTransaction, getSettings, saveSettings } from './services/db';
 import type { Transaction } from './types';
 
-type ViewType = 'dashboard' | 'transactions' | 'people';
+type ViewType = 'dashboard' | 'transactions' | 'people' | 'budgets';
 
 function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -253,7 +254,7 @@ const [showFilters, setShowFilters] = useState(false);
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+{/* Navigation Tabs */}
           <div className="flex gap-1 mt-4 -mb-4">
             <button
               onClick={() => setCurrentView('dashboard')}
@@ -288,6 +289,17 @@ const [showFilters, setShowFilters] = useState(false);
               <Users className="w-4 h-4" />
               People
             </button>
+            <button
+              onClick={() => setCurrentView('budgets')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                currentView === 'budgets'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-t-2 border-blue-500'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Wallet className="w-4 h-4" />
+              Budgets
+            </button>
           </div>
         </div>
       </header>
@@ -305,6 +317,13 @@ const [showFilters, setShowFilters] = useState(false);
             transactions={transactions}
             onAddTransaction={() => setFormOpen(true)}
             onTransactionsChange={loadTransactions}
+          />
+        )}
+
+{currentView === 'budgets' && (
+          <BudgetPlanner 
+            tags={settings.tags}
+            onBudgetsChange={loadTransactions}
           />
         )}
 
@@ -522,13 +541,16 @@ const [showFilters, setShowFilters] = useState(false);
       )}
 
       {/* Settings Modal */}
-      <SettingsModal
+<SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         tags={settings.tags}
         names={settings.names}
         onSave={handleSaveSettings}
-        onFlush={loadTransactions}
+        onRestore={async () => {
+          await loadTransactions();
+          await loadSettings();
+        }}
       />
 
       {/* Delete Confirmation Modal */}

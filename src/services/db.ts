@@ -221,18 +221,33 @@ export interface BackupData {
 }
 
 export const createBackup = async (): Promise<BackupData> => {
+  console.log('[Backup] Starting backup creation...');
   try {
     const db = await initDB();
+    console.log('[Backup] Database initialized successfully');
     
     // Fetch all data from IndexedDB
     const transactions = await db.getAll(STORE_NAME);
+    console.log('[Backup] Fetched transactions:', transactions.length);
+    
     const settingsData = await db.get(SETTINGS_STORE, 'user-settings');
+    console.log('[Backup] Fetched settings:', settingsData);
+    
     const budgets = await db.getAll(BUDGETS_STORE);
-    const investmentGoals = await db.getAll(INVESTMENT_GOALS_STORE);
+    console.log('[Backup] Fetched budgets:', budgets.length);
     
-    const settings = settingsData ? { tags: settingsData.tags, names: settingsData.names } : { tags: [], names: [] };
+    // Handle case where investment_goals store might not exist
+    let investmentGoals: InvestmentGoal[] = [];
+    try {
+      investmentGoals = await db.getAll(INVESTMENT_GOALS_STORE);
+      console.log('[Backup] Fetched investment goals:', investmentGoals.length);
+    } catch (e) {
+      console.log('[Backup] investment_goals store does not exist, skipping...', e);
+    }
     
-    return {
+    const settings = settingsData ? { tags: settingsData.tags || [], names: settingsData.names || [] } : { tags: [], names: [] };
+    
+    const backupData = {
       version: 2,
       exportedAt: new Date().toISOString(),
       transactions,
@@ -240,8 +255,18 @@ export const createBackup = async (): Promise<BackupData> => {
       budgets,
       investmentGoals
     };
+    
+    console.log('[Backup] Backup data created successfully:', {
+      version: backupData.version,
+      exportedAt: backupData.exportedAt,
+      transactionCount: backupData.transactions.length,
+      budgetCount: backupData.budgets.length,
+      goalCount: backupData.investmentGoals.length
+    });
+    
+    return backupData;
   } catch (error) {
-    console.error('Error creating backup:', error);
+    console.error('[Backup] Error creating backup:', error);
     throw new Error(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
