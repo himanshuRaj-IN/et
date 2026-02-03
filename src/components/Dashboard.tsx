@@ -248,38 +248,13 @@ export function Dashboard({ transactions, settlementTotal = 0 }: DashboardProps)
       .sort((a, b) => b.value - a.value);
   }, [transactions]);
 
-const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0
     }).format(amount);
   };
-
-  // Calculate current month stats
-  const currentMonthStats = useMemo(() => {
-    const now = new Date();
-    const monthTransactions = transactions.filter(t => {
-      const tDate = new Date(t.occurredAt);
-      return tDate.getFullYear() === now.getFullYear() && 
-             tDate.getMonth() === now.getMonth();
-    });
-
-    const income = monthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const expenses = monthTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    return {
-      income,
-      expenses,
-      balance: income - expenses,
-      count: monthTransactions.length
-    };
-  }, [transactions]);
 
 return (
     <div className="space-y-6">
